@@ -42,7 +42,4 @@ python demo.py
     - It **mathematically proves** that the log was altered.
     - It identifies specifically *which* block was broken, preserving the chain of custody for all previous records.
 
-### Key Concepts for Your Review
-- **Immutability**: Once a log is hashed, changing it invalidates the hash.
-- **Traceability**: The "Previous Hash" link ensures that deleting or inserting logs breaks the chain.
-- **Forensics**: We can detect "Silent Failures" where logs are altered without anyone noticing.
+
