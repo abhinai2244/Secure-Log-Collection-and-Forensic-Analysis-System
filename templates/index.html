@@ -1,0 +1,840 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Secure Log Forensic Analysis System</title>
+    <meta name="description" content="Real-time Secure Log Collection and Forensic Analysis System with Cryptographic Hash Chain Verification">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --bg-primary: #0a0e1a;
+            --bg-secondary: #111827;
+            --bg-card: rgba(17, 24, 39, 0.8);
+            --bg-glass: rgba(255, 255, 255, 0.03);
+            --border-color: rgba(255, 255, 255, 0.06);
+            --border-glow: rgba(99, 102, 241, 0.3);
+            --text-primary: #f1f5f9;
+            --text-secondary: #94a3b8;
+            --text-muted: #64748b;
+            --accent-blue: #6366f1;
+            --accent-cyan: #06b6d4;
+            --accent-green: #10b981;
+            --accent-red: #ef4444;
+            --accent-orange: #f59e0b;
+            --accent-purple: #a855f7;
+            --gradient-1: linear-gradient(135deg, #6366f1, #06b6d4);
+            --gradient-2: linear-gradient(135deg, #a855f7, #ec4899);
+            --gradient-danger: linear-gradient(135deg, #ef4444, #f59e0b);
+            --shadow-lg: 0 25px 50px -12px rgba(0, 0, 0, 0.5);
+            --shadow-glow: 0 0 40px rgba(99, 102, 241, 0.15);
+        }
+
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        body {
+            font-family: 'Inter', sans-serif;
+            background: var(--bg-primary);
+            color: var(--text-primary);
+            min-height: 100vh;
+            overflow-x: hidden;
+        }
+
+        /* ── Animated Background ── */
+        .bg-grid {
+            position: fixed; inset: 0; z-index: 0;
+            background-image:
+                radial-gradient(ellipse 80% 50% at 50% -20%, rgba(99, 102, 241, 0.12), transparent),
+                radial-gradient(ellipse 60% 40% at 80% 100%, rgba(6, 182, 212, 0.08), transparent);
+        }
+
+        /* ── Header ── */
+        .header {
+            position: relative; z-index: 10;
+            padding: 1.5rem 2rem;
+            border-bottom: 1px solid var(--border-color);
+            backdrop-filter: blur(20px);
+            background: rgba(10, 14, 26, 0.8);
+            display: flex; align-items: center; justify-content: space-between;
+        }
+        .header-title {
+            display: flex; align-items: center; gap: 0.75rem;
+        }
+        .header-title .icon {
+            width: 40px; height: 40px;
+            background: var(--gradient-1);
+            border-radius: 10px;
+            display: flex; align-items: center; justify-content: center;
+            font-size: 1.2rem;
+        }
+        .header-title h1 {
+            font-size: 1.15rem; font-weight: 700;
+            background: var(--gradient-1);
+            -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+        }
+        .header-title p {
+            font-size: 0.75rem; color: var(--text-muted); font-weight: 400;
+        }
+        .header-status {
+            display: flex; align-items: center; gap: 1rem;
+        }
+        .status-badge {
+            display: flex; align-items: center; gap: 0.5rem;
+            padding: 0.4rem 1rem; border-radius: 999px;
+            font-size: 0.75rem; font-weight: 600;
+            border: 1px solid var(--border-color);
+            background: var(--bg-glass);
+        }
+        .status-dot {
+            width: 8px; height: 8px; border-radius: 50%;
+            background: var(--text-muted);
+        }
+        .status-dot.active {
+            background: var(--accent-green);
+            box-shadow: 0 0 8px var(--accent-green);
+            animation: pulse-dot 1.5s infinite;
+        }
+        @keyframes pulse-dot {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.4; }
+        }
+        .btn-reset {
+            padding: 0.4rem 1rem; border-radius: 8px;
+            background: rgba(239, 68, 68, 0.1);
+            border: 1px solid rgba(239, 68, 68, 0.3);
+            color: var(--accent-red); font-size: 0.75rem;
+            font-weight: 600; cursor: pointer;
+            transition: all 0.2s;
+        }
+        .btn-reset:hover { background: rgba(239, 68, 68, 0.2); }
+
+        /* ── Main Container ── */
+        .container {
+            position: relative; z-index: 10;
+            max-width: 1400px; margin: 0 auto;
+            padding: 2rem;
+        }
+
+        /* ── Mode Selection Cards ── */
+        .mode-selection {
+            display: flex; flex-direction: column;
+            align-items: center; justify-content: center;
+            min-height: 70vh; gap: 2rem;
+        }
+        .mode-selection h2 {
+            font-size: 2rem; font-weight: 800;
+            text-align: center;
+            background: var(--gradient-1);
+            -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+        }
+        .mode-selection p {
+            color: var(--text-secondary);
+            font-size: 1rem; text-align: center;
+            max-width: 600px;
+        }
+        .mode-cards {
+            display: grid; grid-template-columns: 1fr 1fr;
+            gap: 2rem; width: 100%; max-width: 800px;
+            margin-top: 1rem;
+        }
+        .mode-card {
+            background: var(--bg-card);
+            border: 1px solid var(--border-color);
+            border-radius: 16px; padding: 2rem;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            position: relative; overflow: hidden;
+        }
+        .mode-card::before {
+            content: ''; position: absolute; inset: 0;
+            border-radius: 16px; padding: 1px;
+            background: var(--gradient-1); mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+            mask-composite: exclude; -webkit-mask-composite: xor;
+            opacity: 0; transition: opacity 0.3s;
+        }
+        .mode-card:hover::before { opacity: 1; }
+        .mode-card:hover {
+            transform: translateY(-4px);
+            box-shadow: var(--shadow-glow);
+        }
+        .mode-card .card-icon {
+            width: 56px; height: 56px; border-radius: 14px;
+            display: flex; align-items: center; justify-content: center;
+            font-size: 1.6rem; margin-bottom: 1.2rem;
+        }
+        .mode-card.windows .card-icon {
+            background: linear-gradient(135deg, rgba(99, 102, 241, 0.2), rgba(99, 102, 241, 0.05));
+        }
+        .mode-card.network .card-icon {
+            background: linear-gradient(135deg, rgba(6, 182, 212, 0.2), rgba(6, 182, 212, 0.05));
+        }
+        .mode-card h3 { font-size: 1.1rem; font-weight: 700; margin-bottom: 0.5rem; }
+        .mode-card p { font-size: 0.85rem; color: var(--text-secondary); line-height: 1.6; }
+
+        /* ── Dashboard Layout ── */
+        .dashboard { display: none; }
+        .dashboard.active { display: block; }
+
+        .dash-grid {
+            display: grid;
+            grid-template-columns: 1fr;
+            gap: 1.5rem;
+        }
+
+        /* ── Cards ── */
+        .card {
+            background: var(--bg-card);
+            backdrop-filter: blur(20px);
+            border: 1px solid var(--border-color);
+            border-radius: 16px;
+            overflow: hidden;
+        }
+        .card-header {
+            padding: 1rem 1.5rem;
+            border-bottom: 1px solid var(--border-color);
+            display: flex; align-items: center; justify-content: space-between;
+        }
+        .card-header h3 {
+            font-size: 0.9rem; font-weight: 600;
+            display: flex; align-items: center; gap: 0.5rem;
+        }
+        .card-body { padding: 1.5rem; }
+
+        /* ── Controls Bar ── */
+        .controls-bar {
+            display: flex; gap: 0.75rem; align-items: center;
+            flex-wrap: wrap;
+            margin-bottom: 1.5rem;
+        }
+        .btn {
+            padding: 0.6rem 1.2rem; border-radius: 10px;
+            font-size: 0.8rem; font-weight: 600;
+            border: none; cursor: pointer;
+            transition: all 0.2s;
+            display: flex; align-items: center; gap: 0.4rem;
+            font-family: 'Inter', sans-serif;
+        }
+        .btn-primary {
+            background: var(--gradient-1); color: white;
+        }
+        .btn-primary:hover { opacity: 0.9; transform: translateY(-1px); }
+        .btn-danger {
+            background: var(--gradient-danger); color: white;
+        }
+        .btn-danger:hover { opacity: 0.9; transform: translateY(-1px); }
+        .btn-outline {
+            background: transparent;
+            border: 1px solid var(--border-color);
+            color: var(--text-secondary);
+        }
+        .btn-outline:hover {
+            border-color: var(--accent-blue);
+            color: var(--accent-blue);
+        }
+        .btn-success {
+            background: linear-gradient(135deg, #10b981, #06b6d4);
+            color: white;
+        }
+        .btn-success:hover { opacity: 0.9; transform: translateY(-1px); }
+        .btn:disabled {
+            opacity: 0.4; cursor: not-allowed; transform: none !important;
+        }
+
+        /* ── Stats Row ── */
+        .stats-row {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+            gap: 1rem; margin-bottom: 1.5rem;
+        }
+        .stat-card {
+            background: var(--bg-glass);
+            border: 1px solid var(--border-color);
+            border-radius: 12px; padding: 1rem 1.2rem;
+        }
+        .stat-card .label {
+            font-size: 0.7rem; font-weight: 500;
+            color: var(--text-muted);
+            text-transform: uppercase; letter-spacing: 0.5px;
+        }
+        .stat-card .value {
+            font-size: 1.6rem; font-weight: 800;
+            margin-top: 0.3rem;
+        }
+        .stat-card .value.blue { color: var(--accent-blue); }
+        .stat-card .value.green { color: var(--accent-green); }
+        .stat-card .value.cyan { color: var(--accent-cyan); }
+        .stat-card .value.purple { color: var(--accent-purple); }
+
+        /* ── Log Table ── */
+        .log-table-wrap {
+            overflow-x: auto;
+            max-height: 400px; overflow-y: auto;
+            border-radius: 8px;
+        }
+        .log-table-wrap::-webkit-scrollbar { width: 6px; height: 6px; }
+        .log-table-wrap::-webkit-scrollbar-track { background: var(--bg-secondary); }
+        .log-table-wrap::-webkit-scrollbar-thumb { background: var(--text-muted); border-radius: 3px; }
+
+        table {
+            width: 100%; border-collapse: collapse;
+            font-size: 0.8rem;
+        }
+        thead th {
+            position: sticky; top: 0; z-index: 2;
+            background: var(--bg-secondary);
+            padding: 0.7rem 1rem;
+            text-align: left;
+            font-weight: 600; font-size: 0.7rem;
+            text-transform: uppercase; letter-spacing: 0.5px;
+            color: var(--text-muted);
+            border-bottom: 1px solid var(--border-color);
+        }
+        tbody tr {
+            border-bottom: 1px solid var(--border-color);
+            transition: background 0.15s;
+        }
+        tbody tr:hover { background: rgba(99, 102, 241, 0.04); }
+        tbody tr.tampered { background: rgba(239, 68, 68, 0.08) !important; }
+        td {
+            padding: 0.6rem 1rem;
+            color: var(--text-secondary);
+            vertical-align: middle;
+        }
+        td.hash {
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 0.7rem;
+            color: var(--accent-cyan);
+        }
+        .severity-badge {
+            display: inline-block;
+            padding: 0.15rem 0.6rem;
+            border-radius: 999px;
+            font-size: 0.65rem;
+            font-weight: 700;
+            text-transform: uppercase;
+        }
+        .severity-INFO { background: rgba(6, 182, 212, 0.15); color: var(--accent-cyan); }
+        .severity-WARNING { background: rgba(245, 158, 11, 0.15); color: var(--accent-orange); }
+        .severity-ERROR { background: rgba(239, 68, 68, 0.15); color: var(--accent-red); }
+        .severity-CRITICAL { background: rgba(168, 85, 247, 0.15); color: var(--accent-purple); }
+        .severity-SYSTEM { background: rgba(99, 102, 241, 0.15); color: var(--accent-blue); }
+
+        /* ── Adversary Panel ── */
+        .adversary-panel {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 1.5rem;
+        }
+        .attack-card {
+            background: var(--bg-glass);
+            border: 1px solid rgba(239, 68, 68, 0.15);
+            border-radius: 12px; padding: 1.5rem;
+        }
+        .attack-card h4 {
+            font-size: 0.85rem; font-weight: 700;
+            margin-bottom: 0.5rem;
+            color: var(--accent-red);
+            display: flex; align-items: center; gap: 0.4rem;
+        }
+        .attack-card p {
+            font-size: 0.78rem; color: var(--text-muted);
+            margin-bottom: 1rem; line-height: 1.5;
+        }
+        .attack-card label {
+            font-size: 0.75rem; font-weight: 500;
+            color: var(--text-secondary);
+            display: block; margin-bottom: 0.3rem;
+        }
+        .attack-card input, .attack-card select {
+            width: 100%;
+            padding: 0.5rem 0.8rem;
+            border-radius: 8px;
+            border: 1px solid var(--border-color);
+            background: var(--bg-secondary);
+            color: var(--text-primary);
+            font-size: 0.8rem;
+            font-family: 'Inter', sans-serif;
+            margin-bottom: 0.8rem;
+            outline: none;
+            transition: border-color 0.2s;
+        }
+        .attack-card input:focus, .attack-card select:focus {
+            border-color: var(--accent-red);
+        }
+
+        /* ── Verification Results ── */
+        .verify-result {
+            display: none;
+            margin-top: 1rem;
+            padding: 1.5rem;
+            border-radius: 12px;
+            animation: fadeSlideIn 0.4s ease;
+        }
+        @keyframes fadeSlideIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        .verify-result.secure {
+            display: block;
+            background: rgba(16, 185, 129, 0.08);
+            border: 1px solid rgba(16, 185, 129, 0.3);
+        }
+        .verify-result.tampered {
+            display: block;
+            background: rgba(239, 68, 68, 0.08);
+            border: 1px solid rgba(239, 68, 68, 0.3);
+        }
+        .verify-result h4 {
+            font-size: 1rem; font-weight: 700;
+            margin-bottom: 0.5rem;
+        }
+        .verify-result.secure h4 { color: var(--accent-green); }
+        .verify-result.tampered h4 { color: var(--accent-red); }
+        .verify-result p {
+            font-size: 0.85rem; color: var(--text-secondary);
+            line-height: 1.6;
+        }
+
+        .verify-blocks {
+            margin-top: 1rem;
+            max-height: 250px; overflow-y: auto;
+        }
+        .verify-block-item {
+            display: flex; align-items: center; gap: 1rem;
+            padding: 0.5rem 0;
+            border-bottom: 1px solid var(--border-color);
+            font-size: 0.78rem;
+        }
+        .verify-block-item .v-icon {
+            width: 24px; height: 24px;
+            border-radius: 50%;
+            display: flex; align-items: center; justify-content: center;
+            font-size: 0.7rem; flex-shrink: 0;
+        }
+        .v-icon.ok { background: rgba(16, 185, 129, 0.15); color: var(--accent-green); }
+        .v-icon.bad { background: rgba(239, 68, 68, 0.15); color: var(--accent-red); }
+
+        /* ── Toast Notifications ── */
+        .toast-container {
+            position: fixed; top: 1rem; right: 1rem;
+            z-index: 9999;
+            display: flex; flex-direction: column; gap: 0.5rem;
+        }
+        .toast {
+            padding: 0.8rem 1.2rem;
+            border-radius: 10px;
+            font-size: 0.8rem; font-weight: 500;
+            animation: toastIn 0.3s ease, toastOut 0.3s ease 3s forwards;
+            max-width: 360px;
+            backdrop-filter: blur(20px);
+        }
+        .toast.success {
+            background: rgba(16, 185, 129, 0.2);
+            border: 1px solid rgba(16, 185, 129, 0.4);
+            color: var(--accent-green);
+        }
+        .toast.error {
+            background: rgba(239, 68, 68, 0.2);
+            border: 1px solid rgba(239, 68, 68, 0.4);
+            color: var(--accent-red);
+        }
+        .toast.warning {
+            background: rgba(245, 158, 11, 0.2);
+            border: 1px solid rgba(245, 158, 11, 0.4);
+            color: var(--accent-orange);
+        }
+        @keyframes toastIn { from { opacity: 0; transform: translateX(30px); } to { opacity: 1; transform: translateX(0); } }
+        @keyframes toastOut { to { opacity: 0; transform: translateX(30px); } }
+
+        /* ── Loading Spinner ── */
+        .spinner {
+            width: 16px; height: 16px;
+            border: 2px solid rgba(255,255,255,0.2);
+            border-top-color: white;
+            border-radius: 50%;
+            animation: spin 0.6s linear infinite;
+            display: inline-block;
+        }
+        @keyframes spin { to { transform: rotate(360deg); } }
+
+        /* ── Responsive ── */
+        @media (max-width: 768px) {
+            .mode-cards { grid-template-columns: 1fr; }
+            .adversary-panel { grid-template-columns: 1fr; }
+            .header { flex-direction: column; gap: 0.75rem; }
+            .stats-row { grid-template-columns: repeat(2, 1fr); }
+        }
+    </style>
+</head>
+<body>
+    <div class="bg-grid"></div>
+
+    <!-- ── Header ── -->
+    <header class="header" id="mainHeader">
+        <div class="header-title">
+            <div class="icon">🔐</div>
+            <div>
+                <h1>Secure Log Forensic Analysis</h1>
+                <p>Cryptographic Hash Chain Verification System</p>
+            </div>
+        </div>
+        <div class="header-status">
+            <div class="status-badge">
+                <div class="status-dot" id="statusDot"></div>
+                <span id="statusText">Idle</span>
+            </div>
+            <button class="btn-reset" onclick="resetSystem()">↻ Reset</button>
+        </div>
+    </header>
+
+    <div class="toast-container" id="toastContainer"></div>
+
+    <div class="container">
+        <!-- ── Mode Selection ── -->
+        <div class="mode-selection" id="modeSelection">
+            <h2>Choose Inspection Mode</h2>
+            <p>Select the log source you want to monitor and analyze. Each mode captures real data, secures it with SHA-256 hash chaining, and enables forensic analysis.</p>
+
+            <div class="mode-cards">
+                <div class="mode-card windows" onclick="startMode('windows')">
+                    <div class="card-icon">🪟</div>
+                    <h3>Windows Event Logs</h3>
+                    <p>Capture real-time Windows Application event logs using PowerShell. Monitors system events, errors, and service activity from your local machine.</p>
+                </div>
+                <div class="mode-card network" onclick="startMode('network')">
+                    <div class="card-icon">🌐</div>
+                    <h3>Network Log Inspection</h3>
+                    <p>Sniff live network packets — TCP, UDP, DNS traffic. Captures source/destination IPs, ports, and protocol details in real-time.</p>
+                </div>
+            </div>
+        </div>
+
+        <!-- ── Dashboard ── -->
+        <div class="dashboard" id="dashboard">
+            <!-- Stats -->
+            <div class="stats-row">
+                <div class="stat-card">
+                    <div class="label">Active Mode</div>
+                    <div class="value blue" id="statMode">—</div>
+                </div>
+                <div class="stat-card">
+                    <div class="label">Chain Blocks</div>
+                    <div class="value cyan" id="statBlocks">0</div>
+                </div>
+                <div class="stat-card">
+                    <div class="label">Packets Captured</div>
+                    <div class="value green" id="statPackets">0</div>
+                </div>
+                <div class="stat-card">
+                    <div class="label">Chain Status</div>
+                    <div class="value green" id="statIntegrity">SECURE</div>
+                </div>
+            </div>
+
+            <!-- Controls -->
+            <div class="controls-bar">
+                <button class="btn btn-danger" onclick="stopCollection()" id="btnStop">⏹ Stop Collection</button>
+                <button class="btn btn-primary" onclick="refreshLogs()">↻ Refresh Logs</button>
+                <button class="btn btn-success" onclick="runVerification()">🔍 Run Forensic Verification</button>
+            </div>
+
+            <div class="dash-grid">
+                <!-- Live Logs -->
+                <div class="card">
+                    <div class="card-header">
+                        <h3>📋 Live Log Chain</h3>
+                        <span style="font-size:0.7rem; color:var(--text-muted)" id="logCount">0 blocks</span>
+                    </div>
+                    <div class="card-body" style="padding:0">
+                        <div class="log-table-wrap">
+                            <table>
+                                <thead>
+                                    <tr>
+                                        <th>#</th>
+                                        <th>Timestamp</th>
+                                        <th>Source</th>
+                                        <th>Type</th>
+                                        <th>Message</th>
+                                        <th>Severity</th>
+                                        <th>Hash</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="logTableBody">
+                                    <tr><td colspan="7" style="text-align:center; padding:2rem; color:var(--text-muted)">No logs yet. Start a collection mode.</td></tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Adversary Simulation -->
+                <div class="card">
+                    <div class="card-header">
+                        <h3>☠️ Adversary Simulation</h3>
+                        <span style="font-size:0.7rem; color:var(--accent-red)">⚠ Simulates real attacks on captured logs</span>
+                    </div>
+                    <div class="card-body">
+                        <div class="adversary-panel">
+                            <div class="attack-card">
+                                <h4>💉 Attack 1: Modify Log Content</h4>
+                                <p>Simulate a database intrusion where an attacker silently changes a log entry's content after it was hashed and chained.</p>
+                                <label>Select Block Index</label>
+                                <select id="modifyBlockIndex"></select>
+                                <label>Injected Malicious Message</label>
+                                <input type="text" id="modifyMessage" value="MALICIOUS_PAYLOAD_INJECTED" placeholder="Enter fake message...">
+                                <button class="btn btn-danger" onclick="attackModify()">⚡ Execute Modify Attack</button>
+                            </div>
+                            <div class="attack-card">
+                                <h4>🗑️ Attack 2: Delete Log Entry</h4>
+                                <p>Simulate evidence destruction — forcefully delete a block from the chain to cover tracks. This breaks the chain linkage.</p>
+                                <label>Select Block Index</label>
+                                <select id="deleteBlockIndex"></select>
+                                <button class="btn btn-danger" onclick="attackDelete()" style="margin-top: 0.8rem;">⚡ Execute Delete Attack</button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Forensic Verification -->
+                <div class="card">
+                    <div class="card-header">
+                        <h3>🔬 Forensic Verification Results</h3>
+                    </div>
+                    <div class="card-body">
+                        <p style="font-size:0.85rem; color:var(--text-muted); margin-bottom:1rem">
+                            Click <strong>"Run Forensic Verification"</strong> above to recalculate all SHA-256 hashes and check chain linkage integrity.
+                        </p>
+                        <div id="verifyResult"></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // ── State ──
+        let pollInterval = null;
+        let currentMode = null;
+
+        // ── API Helpers ──
+        async function api(endpoint, method = 'GET', body = null) {
+            const opts = { method, headers: { 'Content-Type': 'application/json' } };
+            if (body) opts.body = JSON.stringify(body);
+            const res = await fetch(endpoint, opts);
+            return res.json();
+        }
+
+        // ── Toast ──
+        function toast(msg, type = 'success') {
+            const container = document.getElementById('toastContainer');
+            const el = document.createElement('div');
+            el.className = `toast ${type}`;
+            el.textContent = msg;
+            container.appendChild(el);
+            setTimeout(() => el.remove(), 3500);
+        }
+
+        // ── Mode Selection ──
+        async function startMode(mode) {
+            currentMode = mode;
+            const data = await api('/api/start', 'POST', { mode });
+            if (data.status === 'ok') {
+                document.getElementById('modeSelection').style.display = 'none';
+                document.getElementById('dashboard').classList.add('active');
+                document.getElementById('statMode').textContent = mode === 'windows' ? 'Windows Events' : 'Network Packets';
+                document.getElementById('statusDot').classList.add('active');
+                document.getElementById('statusText').textContent = `Collecting (${mode})`;
+                toast(data.message);
+                startPolling();
+            } else {
+                toast(data.message, 'error');
+            }
+        }
+
+        // ── Polling ──
+        function startPolling() {
+            refreshLogs();
+            pollInterval = setInterval(() => {
+                refreshLogs();
+                refreshStatus();
+            }, 2000);
+        }
+
+        function stopPolling() {
+            if (pollInterval) {
+                clearInterval(pollInterval);
+                pollInterval = null;
+            }
+        }
+
+        // ── Refresh Logs ──
+        async function refreshLogs() {
+            const data = await api('/api/logs');
+            const tbody = document.getElementById('logTableBody');
+            const blocks = data.blocks;
+
+            document.getElementById('logCount').textContent = `${blocks.length} blocks`;
+            document.getElementById('statBlocks').textContent = blocks.length;
+
+            if (blocks.length === 0) {
+                tbody.innerHTML = '<tr><td colspan="7" style="text-align:center; padding:2rem; color:var(--text-muted)">No logs yet.</td></tr>';
+                return;
+            }
+
+            tbody.innerHTML = blocks.map(b => {
+                const sev = b.log?.severity || 'INFO';
+                const ts = b.log?.timestamp || '—';
+                const shortTs = ts.length > 19 ? ts.substring(11, 19) : ts;
+                const hash = b.hash ? b.hash.substring(0, 12) + '...' : '—';
+                return `<tr>
+                    <td style="font-weight:600; color:var(--accent-blue)">${b.index}</td>
+                    <td style="font-family:'JetBrains Mono',monospace; font-size:0.72rem">${shortTs}</td>
+                    <td>${b.log?.source || '—'}</td>
+                    <td><span style="color:var(--accent-purple); font-size:0.72rem">${b.log?.event_type || '—'}</span></td>
+                    <td style="max-width:300px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap">${b.log?.message || '—'}</td>
+                    <td><span class="severity-badge severity-${sev}">${sev}</span></td>
+                    <td class="hash">${hash}</td>
+                </tr>`;
+            }).join('');
+
+            // Update attack dropdowns
+            updateBlockDropdowns(blocks);
+        }
+
+        async function refreshStatus() {
+            const data = await api('/api/status');
+            document.getElementById('statPackets').textContent = data.packets_captured || 0;
+            if (!data.collecting) {
+                document.getElementById('statusDot').classList.remove('active');
+                document.getElementById('statusText').textContent = 'Stopped';
+            }
+        }
+
+        // ── Block Dropdowns ──
+        function updateBlockDropdowns(blocks) {
+            const modSel = document.getElementById('modifyBlockIndex');
+            const delSel = document.getElementById('deleteBlockIndex');
+            const currentModVal = modSel.value;
+            const currentDelVal = delSel.value;
+
+            const options = blocks
+                .filter(b => b.index > 0) // skip genesis
+                .map(b => `<option value="${b.index}">Block ${b.index} — ${(b.log?.source || '').substring(0, 20)}</option>`)
+                .join('');
+
+            modSel.innerHTML = options || '<option disabled>No blocks available</option>';
+            delSel.innerHTML = options || '<option disabled>No blocks available</option>';
+
+            if (currentModVal) modSel.value = currentModVal;
+            if (currentDelVal) delSel.value = currentDelVal;
+        }
+
+        // ── Stop Collection ──
+        async function stopCollection() {
+            const data = await api('/api/stop', 'POST');
+            document.getElementById('statusDot').classList.remove('active');
+            document.getElementById('statusText').textContent = 'Stopped';
+            toast(data.message, 'warning');
+        }
+
+        // ── Attacks ──
+        async function attackModify() {
+            const idx = document.getElementById('modifyBlockIndex').value;
+            const msg = document.getElementById('modifyMessage').value;
+            if (!idx) return toast('Select a block first.', 'error');
+
+            const data = await api('/api/attack/modify', 'POST', {
+                block_index: parseInt(idx),
+                new_message: msg
+            });
+
+            if (data.status === 'ok') {
+                toast(`☠️ ${data.message}`, 'warning');
+                document.getElementById('statIntegrity').textContent = 'TAMPERED?';
+                document.getElementById('statIntegrity').style.color = 'var(--accent-orange)';
+                refreshLogs();
+            } else {
+                toast(data.message, 'error');
+            }
+        }
+
+        async function attackDelete() {
+            const idx = document.getElementById('deleteBlockIndex').value;
+            if (!idx) return toast('Select a block first.', 'error');
+
+            const data = await api('/api/attack/delete', 'POST', {
+                block_index: parseInt(idx)
+            });
+
+            if (data.status === 'ok') {
+                toast(`☠️ ${data.message}`, 'warning');
+                document.getElementById('statIntegrity').textContent = 'TAMPERED?';
+                document.getElementById('statIntegrity').style.color = 'var(--accent-orange)';
+                refreshLogs();
+            } else {
+                toast(data.message, 'error');
+            }
+        }
+
+        // ── Forensic Verification ──
+        async function runVerification() {
+            const data = await api('/api/verify');
+            const container = document.getElementById('verifyResult');
+            const result = data.result;
+            const details = data.block_details;
+
+            const isSecure = result.valid;
+
+            let html = `<div class="verify-result ${isSecure ? 'secure' : 'tampered'}">`;
+
+            if (isSecure) {
+                html += `<h4>✅ CHAIN INTEGRITY VERIFIED — ALL BLOCKS SECURE</h4>`;
+                html += `<p>All ${data.total_blocks} blocks have been verified. SHA-256 hashes match recalculated values and all chain links are intact. No tampering detected.</p>`;
+                document.getElementById('statIntegrity').textContent = 'SECURE';
+                document.getElementById('statIntegrity').style.color = 'var(--accent-green)';
+            } else {
+                html += `<h4>🚨 TAMPERING DETECTED — CHAIN INTEGRITY BROKEN</h4>`;
+                html += `<p><strong>Reason:</strong> ${result.reason}<br><strong>Broken at Block:</strong> #${result.broken_index}</p>`;
+                document.getElementById('statIntegrity').textContent = 'TAMPERED';
+                document.getElementById('statIntegrity').style.color = 'var(--accent-red)';
+            }
+
+            html += `<div class="verify-blocks">`;
+            details.forEach(d => {
+                const ok = d.hash_valid && d.link_valid;
+                html += `<div class="verify-block-item">
+                    <div class="v-icon ${ok ? 'ok' : 'bad'}">${ok ? '✓' : '✗'}</div>
+                    <div style="flex:1">
+                        <strong>Block ${d.index}</strong> — ${d.source}
+                        <div style="font-size:0.7rem; color:var(--text-muted); margin-top:2px; font-family:'JetBrains Mono',monospace">
+                            Stored: ${d.stored_hash} | Recalc: ${d.recalculated_hash}
+                            ${!d.hash_valid ? '<span style="color:var(--accent-red)"> ⛔ HASH MISMATCH</span>' : ''}
+                            ${!d.link_valid ? '<span style="color:var(--accent-red)"> ⛔ LINK BROKEN</span>' : ''}
+                        </div>
+                    </div>
+                </div>`;
+            });
+            html += `</div></div>`;
+
+            container.innerHTML = html;
+            toast(isSecure ? '✅ Chain verified — all secure.' : '🚨 Tampering detected!', isSecure ? 'success' : 'error');
+        }
+
+        // ── Reset ──
+        async function resetSystem() {
+            stopPolling();
+            const data = await api('/api/reset', 'POST');
+            document.getElementById('dashboard').classList.remove('active');
+            document.getElementById('modeSelection').style.display = 'flex';
+            document.getElementById('statusDot').classList.remove('active');
+            document.getElementById('statusText').textContent = 'Idle';
+            document.getElementById('statIntegrity').textContent = 'SECURE';
+            document.getElementById('statIntegrity').style.color = 'var(--accent-green)';
+            document.getElementById('verifyResult').innerHTML = '';
+            document.getElementById('logTableBody').innerHTML = '<tr><td colspan="7" style="text-align:center; padding:2rem; color:var(--text-muted)">No logs yet. Start a collection mode.</td></tr>';
+            currentMode = null;
+            toast(data.message);
+        }
+    </script>
+</body>
+</html>
