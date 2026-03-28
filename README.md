@@ -1,48 +1,67 @@
-# Secure Log Collection & Forensic Analysis System
-## Real-Time Prototype & Forensic Demo
+# Secure Log Collection & Forensic Analysis System v2.0
+## AI-Powered Detection, Blockchain Integrity, and Real-Time Forensics
 
-This project demonstrates a secure logging system using **SHA-256 Hash Chaining** (Blockchain concepts) to ensure log integrity and detect tampering of **Real-Time Windows Logs**.
+This project is an advanced, enterprise-grade secure logging and forensic analysis system. It leverages **SHA-256 Hash Chaining** and **RSA Digital Signatures** to ensure log immutability, while using **Rule-based and ML-based engines** to detect and prevent cyber attacks in real-time.
 
-### Prerequisites
+### 🌟 Key Features
 
-- Python 3.x installed.
-- **Windows OS** (required for `Get-EventLog` PowerShell command).
+#### 🛡️ Advanced Security
+- **Blockchain Chaining**: Logs are cryptographically linked, ensuring that any deletion or insertion breaks the chain.
+- **RSA Digital Signatures**: Every log block is signed with an RSA-2048 private key, providing non-repudiation and proof of origin.
+- **Multi-Source Collection**: Real-time ingestion from **Windows Event Logs** (via PowerShell) and **Live Network Traffic** (Deep Packet Inspection).
 
-### Project Structure
+#### 🧠 Smart Attack Detection
+- **AI/ML Engine**: Statistical anomaly detection for identifying traffic spikes (DDoS) and unusual system behavior.
+- **Rule Engine**: Detects Brute Force attacks, Port Scans, and SQL Injection patterns.
+- **Threat Intelligence**: Integrated reputation checks to flag known malicious IPs.
 
-- `secure_logger/`: Core Python package.
-    - `models.py`: Defines the `LogEntry` and `Block` structure (SHA-256).
-    - `chain.py`: Manages the secure hash chain and integrity verification.
-    - `real_collector.py`: **[NEW]** Connects to Windows PowerShell to fetch live System/Application events.
-    - `adversary.py`: Simulates an internal theoretical attack (modifying validated logs) to demonstrate forensic capabilities.
-- `demo.py`: The main script to run the real-time monitoring and forensic analysis.
+#### 📊 Forensic Dashboard
+- **Real-Time Visualization**: Dynamic charts (Chart.js) for attack distribution and risk timelines.
+- **Interactive Simulation Lab**: One-click triggers for DDoS, Brute Force, and Port Scans to test detection logic.
+- **IPS (Intrusion Prevention)**: Automated IP blocking when high-risk threats are identified.
+- **Forensic Reports**: One-click PDF generation with cryptographic evidence and incident timelines.
 
-### How to Run the Demo
+### 🛠️ Prerequisites
 
-1.  Open a terminal in this folder.
-2.  Run the following command:
+- **Python 3.10+**
+- **Windows OS** (for Event Log and Firewall integration)
+- **Scapy & Npcap** (Optional, for live network capture)
+- **Required Libraries**: `flask`, `cryptography`, `sklearn`, `fpdf2`, `chart.js` (CDN)
 
-```bash
-python demo.py
-```
+### 🚀 Quick Start
 
-### What to Expect
+1. **Install Dependencies**:
+   ```bash
+   pip install flask cryptography scikit-learn fpdf2 werkzeug==2.2.2
+   ```
 
-1.  **Phase 1 & 2 (Real Data Collection)**: 
-    - The system connects to your **Windows Event Viewer**. 
-    - You will see actual 'Application' events (e.g., Chrome, Updater, System Services) being captured and secured in real-time.
-    - Each log is cryptographically chained to the previous one immediately upon arrival.
+2. **Run the Application**:
+   ```bash
+   python app.py
+   ```
 
-2.  **Phase 3 (The Attack Simulation)**: 
-    - You will be prompted to simulate a tamper event. 
-    - The `Adversary` script will modify one of the *actual* log entries we just captured in memory to simulate a database intrusion.
+3. **Access the Dashboard**:
+   Open `http://localhost:5000` in your browser.
 
-3.  **Phase 4 (Forensic Analysis)**: 
-    - The system recalculates the SHA-256 hashes.
-    - It **mathematically proves** that the log was altered.
-    - It identifies specifically *which* block was broken, preserving the chain of custody for all previous records.
+### 📁 Project Structure
 
-### Key Concepts for Your Review
-- **Immutability**: Once a log is hashed, changing it invalidates the hash.
-- **Traceability**: The "Previous Hash" link ensures that deleting or inserting logs breaks the chain.
-- **Forensics**: We can detect "Silent Failures" where logs are altered without anyone noticing.
+- `secure_logger/`: Core forensic package.
+    - `chain.py`: Blockchain logic and RSA signature management.
+    - `detection.py`: Rule-based and ML anomaly detection.
+    - `ips.py`: Intrusion Prevention System (IPS) for IP blocking.
+    - `report.py`: PDF Forensic Report generation.
+    - `threat_intel.py`: IP reputation and blacklist management.
+    - `network_collector.py`: Live packet capture logic.
+    - `real_collector.py`: Windows Event Log collector.
+- `app.py`: Main Flask entry point and API gateway.
+- `templates/index.html`: Modern, premium dark-mode dashboard.
+
+### 🔬 Forensic Analysis Workflow
+
+1. **Collect**: Start monitoring Windows or Network logs.
+2. **Detect**: The engine flags attacks like Brute Force or DDoS in real-time.
+3. **Verify**: Run a "Forensic Verification" to mathematically prove the integrity of the log chain.
+4. **Export**: Generate a signed PDF report for incident response and evidence preservation.
+
+---
+**Disclaimer**: This tool is for educational and forensic analysis purposes. Ensure you have proper authorization before monitoring network or system logs.
