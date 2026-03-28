@@ -1,0 +1,785 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Secure Log Forensic Analysis System v2.0</title>
+    <meta name="description" content="Advanced Secure Log Collection, ML Attack Detection, and Forensic Analysis System">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        :root {
+            --bg-primary: #0a0e1a;
+            --bg-secondary: #111827;
+            --bg-card: rgba(17, 24, 39, 0.85);
+            --bg-glass: rgba(255, 255, 255, 0.03);
+            --border-color: rgba(255, 255, 255, 0.08);
+            --border-glow: rgba(99, 102, 241, 0.3);
+            --text-primary: #f1f5f9;
+            --text-secondary: #94a3b8;
+            --text-muted: #64748b;
+            --accent-blue: #6366f1;
+            --accent-cyan: #06b6d4;
+            --accent-green: #10b981;
+            --accent-red: #ef4444;
+            --accent-orange: #f59e0b;
+            --accent-purple: #a855f7;
+            --gradient-1: linear-gradient(135deg, #6366f1, #06b6d4);
+            --gradient-2: linear-gradient(135deg, #a855f7, #ec4899);
+            --gradient-danger: linear-gradient(135deg, #ef4444, #f59e0b);
+            --shadow-lg: 0 25px 50px -12px rgba(0, 0, 0, 0.5);
+            --shadow-glow: 0 0 40px rgba(99, 102, 241, 0.15);
+        }
+
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        body {
+            font-family: 'Inter', sans-serif;
+            background: var(--bg-primary);
+            color: var(--text-primary);
+            min-height: 100vh;
+            overflow-x: hidden;
+        }
+
+        /* ── Animated Background ── */
+        .bg-grid {
+            position: fixed; inset: 0; z-index: 0;
+            background-image:
+                radial-gradient(ellipse 80% 50% at 50% -20%, rgba(99, 102, 241, 0.15), transparent),
+                radial-gradient(ellipse 60% 40% at 80% 100%, rgba(6, 182, 212, 0.1), transparent);
+            pointer-events: none;
+        }
+
+        /* ── Header ── */
+        .header {
+            position: relative; z-index: 10;
+            padding: 1rem 2rem;
+            border-bottom: 1px solid var(--border-color);
+            backdrop-filter: blur(20px);
+            background: rgba(10, 14, 26, 0.85);
+            display: flex; align-items: center; justify-content: space-between;
+        }
+        .header-title {
+            display: flex; align-items: center; gap: 0.75rem;
+        }
+        .header-title .icon {
+            width: 42px; height: 42px;
+            background: var(--gradient-1);
+            border-radius: 12px;
+            display: flex; align-items: center; justify-content: center;
+            font-size: 1.3rem;
+            box-shadow: 0 4px 15px rgba(99, 102, 241, 0.3);
+        }
+        .header-title h1 {
+            font-size: 1.25rem; font-weight: 800;
+            background: var(--gradient-1);
+            -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+            letter-spacing: -0.5px;
+        }
+        .header-title p {
+            font-size: 0.7rem; color: var(--text-muted); font-weight: 500;
+            text-transform: uppercase; letter-spacing: 1px;
+        }
+        .header-status {
+            display: flex; align-items: center; gap: 1rem;
+        }
+        .status-badge {
+            display: flex; align-items: center; gap: 0.6rem;
+            padding: 0.5rem 1.2rem; border-radius: 999px;
+            font-size: 0.75rem; font-weight: 700;
+            border: 1px solid var(--border-color);
+            background: var(--bg-glass);
+            box-shadow: inset 0 0 10px rgba(255,255,255,0.02);
+        }
+        .status-dot {
+            width: 9px; height: 9px; border-radius: 50%;
+            background: var(--text-muted);
+        }
+        .status-dot.active {
+            background: var(--accent-green);
+            box-shadow: 0 0 12px var(--accent-green);
+            animation: pulse-dot 2s infinite;
+        }
+        @keyframes pulse-dot {
+            0%, 100% { opacity: 1; transform: scale(1); }
+            50% { opacity: 0.4; transform: scale(0.85); }
+        }
+        .btn-reset {
+            padding: 0.5rem 1.2rem; border-radius: 10px;
+            background: rgba(239, 68, 68, 0.1);
+            border: 1px solid rgba(239, 68, 68, 0.4);
+            color: var(--accent-red); font-size: 0.75rem;
+            font-weight: 700; cursor: pointer;
+            transition: all 0.25s;
+        }
+        .btn-reset:hover { background: rgba(239, 68, 68, 0.25); transform: translateY(-1px); }
+
+        /* ── Main Container ── */
+        .container {
+            position: relative; z-index: 10;
+            max-width: 1500px; margin: 0 auto;
+            padding: 1.5rem;
+        }
+
+        /* ── Mode Selection ── */
+        .mode-selection {
+            display: flex; flex-direction: column;
+            align-items: center; justify-content: center;
+            min-height: 75vh; gap: 2.5rem;
+        }
+        .mode-selection h2 {
+            font-size: 2.5rem; font-weight: 800;
+            text-align: center; color: white;
+            letter-spacing: -1px;
+        }
+        .mode-selection p {
+            color: var(--text-secondary);
+            font-size: 1.1rem; text-align: center;
+            max-width: 650px; line-height: 1.6;
+        }
+        .mode-cards {
+            display: grid; grid-template-columns: 1fr 1fr;
+            gap: 2.5rem; width: 100%; max-width: 1000px;
+        }
+        .mode-card {
+            background: var(--bg-card);
+            border: 1px solid var(--border-color);
+            border-radius: 20px; padding: 2.5rem;
+            cursor: pointer;
+            transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+            position: relative; overflow: hidden;
+            display: flex; flex-direction: column; align-items: flex-start;
+        }
+        .mode-card::after {
+            content: ''; position: absolute; inset: 0;
+            background: radial-gradient(circle at top right, rgba(99, 102, 241, 0.1), transparent 70%);
+            opacity: 0; transition: opacity 0.3s;
+        }
+        .mode-card:hover::after { opacity: 1; }
+        .mode-card:hover {
+            transform: translateY(-8px);
+            border-color: var(--accent-blue);
+            box-shadow: var(--shadow-glow);
+        }
+        .mode-card .card-icon {
+            width: 64px; height: 64px; border-radius: 16px;
+            display: flex; align-items: center; justify-content: center;
+            font-size: 1.8rem; margin-bottom: 1.5rem;
+            background: var(--bg-glass);
+            border: 1px solid var(--border-color);
+        }
+        .mode-card.windows .card-icon { color: var(--accent-blue); box-shadow: 0 10px 20px rgba(99, 102, 241, 0.1); }
+        .mode-card.network .card-icon { color: var(--accent-cyan); box-shadow: 0 10px 20px rgba(6, 182, 212, 0.1); }
+        .mode-card h3 { font-size: 1.35rem; font-weight: 800; margin-bottom: 0.75rem; color: white; }
+        .mode-card p { font-size: 0.95rem; color: var(--text-secondary); line-height: 1.6; text-align: left; }
+
+        /* ── Dashboard Layout ── */
+        .dashboard { display: none; }
+        .dashboard.active { display: grid; grid-template-columns: 320px 1fr; gap: 1.5rem; }
+
+        /* ── Sidebar ── */
+        .sidebar { display: flex; flex-direction: column; gap: 1.5rem; }
+
+        /* ── Stats Card ── */
+        .card {
+            background: var(--bg-card);
+            backdrop-filter: blur(30px);
+            border: 1px solid var(--border-color);
+            border-radius: 18px;
+            overflow: hidden;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+        }
+        .card-header {
+            padding: 1.2rem 1.5rem;
+            border-bottom: 1px solid var(--border-color);
+            display: flex; align-items: center; justify-content: space-between;
+            background: rgba(255,255,255,0.02);
+        }
+        .card-header h3 {
+            font-size: 0.85rem; font-weight: 700;
+            text-transform: uppercase; letter-spacing: 1px;
+            color: var(--text-secondary);
+            display: flex; align-items: center; gap: 0.6rem;
+        }
+        .card-body { padding: 1.5rem; }
+
+        /* ── Mini Stats ── */
+        .mini-stats { display: flex; flex-direction: column; gap: 1rem; }
+        .m-stat {
+            background: var(--bg-glass);
+            border: 1px solid var(--border-color);
+            border-radius: 14px; padding: 1rem;
+            display: flex; justify-content: space-between; align-items: center;
+        }
+        .m-stat .m-label { font-size: 0.7rem; color: var(--text-muted); font-weight: 600; text-transform: uppercase; }
+        .m-stat .m-value { font-size: 1.4rem; font-weight: 800; color: white; }
+        .m-value.blue { color: var(--accent-blue); }
+        .m-value.purple { color: var(--accent-purple); }
+        .m-value.red { color: var(--accent-red); }
+
+        /* ── Chart Container ── */
+        .chart-container { height: 180px; position: relative; }
+
+        /* ── Main Content Area ── */
+        .main-content { display: flex; flex-direction: column; gap: 1.5rem; }
+
+        .top-stats-row {
+            display: grid; grid-template-columns: repeat(4, 1fr); gap: 1rem;
+        }
+
+        /* ── Control Bar ── */
+        .controls {
+            display: flex; gap: 0.75rem; align-items: center; flex-wrap: wrap;
+        }
+        .btn {
+            padding: 0.7rem 1.4rem; border-radius: 12px;
+            font-size: 0.8rem; font-weight: 700;
+            border: none; cursor: pointer;
+            transition: all 0.3s;
+            display: flex; align-items: center; gap: 0.5rem;
+            color: white;
+        }
+        .btn-primary { background: var(--gradient-1); box-shadow: 0 4px 12px rgba(99, 102, 241, 0.2); }
+        .btn-purple { background: var(--gradient-2); }
+        .btn-danger { background: var(--gradient-danger); }
+        .btn-outline { background: transparent; border: 1px solid var(--border-color); color: var(--text-secondary); }
+        .btn-outline:hover { border-color: var(--accent-blue); color: white; background: var(--bg-glass); }
+        .btn:hover { transform: translateY(-2px); filter: brightness(1.1); }
+        .btn:active { transform: translateY(0); }
+
+        /* ── IPS Toggle ── */
+        .ips-toggle {
+            display: flex; align-items: center; gap: 0.75rem;
+            padding: 0.5rem 1rem; border-radius: 12px;
+            background: var(--bg-glass); border: 1px solid var(--border-color);
+        }
+        .switch {
+            position: relative; display: inline-block; width: 44px; height: 24px;
+        }
+        .switch input { opacity: 0; width: 0; height: 0; }
+        .slider {
+            position: absolute; cursor: pointer; inset: 0;
+            background-color: var(--bg-secondary);
+            transition: .4s; border-radius: 34px; border: 1px solid var(--border-color);
+        }
+        .slider:before {
+            position: absolute; content: ""; height: 16px; width: 16px; left: 3px; bottom: 3px;
+            background-color: white; transition: .4s; border-radius: 50%;
+        }
+        input:checked + .slider { background-color: var(--accent-green); }
+        input:checked + .slider:before { transform: translateX(20px); }
+
+        /* ── Log Table ── */
+        .log-section { flex: 1; display: flex; flex-direction: column; }
+        .table-scroll {
+            max-height: 480px; overflow-y: auto; overflow-x: auto;
+            border-radius: 12px;
+        }
+        .table-scroll::-webkit-scrollbar { width: 6px; height: 6px; }
+        .table-scroll::-webkit-scrollbar-thumb { background: var(--text-muted); border-radius: 10px; }
+
+        table { width: 100%; border-collapse: collapse; font-size: 0.82rem; }
+        thead th {
+            position: sticky; top: 0; z-index: 5;
+            background: #111827; padding: 1rem;
+            text-align: left; font-weight: 700; color: var(--text-muted);
+            text-transform: uppercase; font-size: 0.65rem; letter-spacing: 1px;
+            border-bottom: 1px solid var(--border-color);
+        }
+        tbody tr { border-bottom: 1px solid var(--border-color); transition: background 0.2s; }
+        tbody tr:hover { background: rgba(255,255,255,0.02); }
+        tbody td { padding: 1rem; color: var(--text-secondary); }
+        .hash-code { font-family: 'JetBrains Mono', monospace; font-size: 0.7rem; color: var(--accent-cyan); opacity: 0.8; }
+        
+        .badge {
+            padding: 0.2rem 0.6rem; border-radius: 6px; font-size: 0.65rem; font-weight: 800; text-transform: uppercase;
+        }
+        .b-info { background: rgba(99, 102, 241, 0.15); color: var(--accent-blue); }
+        .b-warning { background: rgba(245, 158, 11, 0.15); color: var(--accent-orange); }
+        .b-danger { background: rgba(239, 68, 68, 0.15); color: var(--accent-red); }
+        .b-critical { background: rgba(168, 85, 247, 0.2); color: var(--accent-purple); border: 1px solid rgba(168, 85, 247, 0.3); }
+
+        /* ── Attack Feed ── */
+        .attack-feed { display: flex; flex-direction: column; gap: 0.75rem; }
+        .attack-item {
+            background: rgba(239, 68, 68, 0.05);
+            border: 1px solid rgba(239, 68, 68, 0.15);
+            border-left: 4px solid var(--accent-red);
+            border-radius: 10px; padding: 0.8rem 1rem;
+            display: flex; flex-direction: column; gap: 0.3rem;
+        }
+        .attack-item .a-type { font-size: 0.8rem; font-weight: 800; color: var(--accent-red); }
+        .attack-item .a-info { font-size: 0.7rem; color: var(--text-secondary); line-height: 1.4; }
+        .attack-item .a-meta { font-size: 0.6rem; color: var(--text-muted); display: flex; justify-content: space-between; }
+
+        /* ── Advanced Control Grid ── */
+        .sim-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 1rem; }
+        .sim-btn {
+            background: var(--bg-glass); border: 1px solid var(--border-color);
+            border-radius: 12px; padding: 1rem; cursor: pointer; transition: all 0.3s;
+            display: flex; flex-direction: column; align-items: center; gap: 0.5rem;
+        }
+        .sim-btn:hover { border-color: var(--accent-purple); background: rgba(168, 85, 247, 0.05); transform: scale(1.02); }
+        .sim-btn .icon { font-size: 1.5rem; }
+        .sim-btn .name { font-size: 0.75rem; font-weight: 700; color: var(--text-secondary); }
+
+        /* ── Forensic Report Banner ── */
+        .report-banner {
+            background: linear-gradient(90deg, #6366f1, #a855f7);
+            border-radius: 14px; padding: 1rem 1.5rem;
+            display: flex; justify-content: space-between; align-items: center;
+            margin-top: auto; box-shadow: 0 10px 25px rgba(99, 102, 241, 0.3);
+        }
+        .report-info h4 { font-size: 1rem; font-weight: 800; color: white; }
+        .report-info p { font-size: 0.75rem; color: rgba(255,255,255,0.8); }
+
+        /* ── Verification Modal Overlays ── */
+        #verifyOverlay {
+            position: fixed; inset: 0; z-index: 1000; background: rgba(0,0,0,0.8);
+            backdrop-filter: blur(10px); display: none; align-items: center; justify-content: center; padding: 2rem;
+        }
+        .verify-card {
+            background: var(--bg-secondary); border: 1px solid var(--border-color);
+            border-radius: 24px; width: 100%; max-width: 700px; padding: 2.5rem;
+            position: relative; box-shadow: 0 0 100px rgba(0,0,0,0.8);
+        }
+        .v-status-icon {
+            width: 80px; height: 80px; border-radius: 50%; display: flex; align-items: center; justify-content: center;
+            font-size: 2.5rem; margin: 0 auto 1.5rem;
+        }
+        .v-status-icon.secure { background: rgba(16, 185, 129, 0.15); color: var(--accent-green); box-shadow: 0 0 30px rgba(16, 185, 129, 0.2); }
+        .v-status-icon.danger { background: rgba(239, 68, 68, 0.15); color: var(--accent-red); box-shadow: 0 0 30px rgba(239, 68, 68, 0.2); }
+        
+        .toast {
+            position: fixed; top: 1.5rem; right: 1.5rem; z-index: 10000; padding: 1rem 1.5rem;
+            border-radius: 12px; background: var(--bg-card); backdrop-filter: blur(20px);
+            border: 1px solid var(--border-color); color: white; font-size: 0.85rem; font-weight: 600;
+            display: flex; align-items: center; gap: 0.75rem; box-shadow: var(--shadow-lg);
+            animation: slideIn 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+        }
+        @keyframes slideIn { from { transform: translateX(100%); opacity: 0; } to { transform: translateX(0); opacity: 1; } }
+
+        @media (max-width: 1200px) {
+            .dashboard { grid-template-columns: 1fr; }
+            .top-stats-row { grid-template-columns: repeat(2, 1fr); }
+        }
+    </style>
+</head>
+<body>
+    <div class="bg-grid"></div>
+
+    <!-- Header -->
+    <header class="header">
+        <div class="header-title">
+            <div class="icon">🔱</div>
+            <div>
+                <h1>Secure-Log Forensics</h1>
+                <p>AI-Powered Analysis System</p>
+            </div>
+        </div>
+        <div class="header-status">
+            <div class="status-badge">
+                <div class="status-dot" id="statusDot"></div>
+                <span id="statusText">System Initializing</span>
+            </div>
+            <button class="btn-reset" onclick="resetSystem()">↻ Full Reset</button>
+        </div>
+    </header>
+
+    <div class="container">
+        <!-- Mode Selection -->
+        <div id="modeSelection" class="mode-selection">
+            <h2>Select Collection Source</h2>
+            <p>Our forensic engine will collect logs from the target source and immediately secure them using SHA-256 hash chaining and digital signatures.</p>
+            <div class="mode-cards">
+                <div class="mode-card windows" onclick="startMode('windows')">
+                    <div class="card-icon">🪟</div>
+                    <h3>Windows Events</h3>
+                    <p>Captures real-time Application, System, and Security logs from Event Viewer. Ideal for host-based forensics.</p>
+                </div>
+                <div class="mode-card network" onclick="startMode('network')">
+                    <div class="card-icon">🌐</div>
+                    <h3>Live Network</h3>
+                    <p>Deep packet inspection (DPI) of live traffic. Detects communication patterns and flags malicious IPs.</p>
+                </div>
+            </div>
+        </div>
+
+        <!-- Dashboard -->
+        <div id="dashboard" class="dashboard">
+            <!-- Sidebar -->
+            <div class="sidebar">
+                <div class="card">
+                    <div class="card-header"><h3>⚡ Security Stats</h3></div>
+                    <div class="card-body">
+                        <div class="mini-stats">
+                            <div class="m-stat"><span class="m-label">Captured</span><span class="m-value blue" id="statCaptured">0</span></div>
+                            <div class="m-stat"><span class="m-label">Chain Blocks</span><span class="m-value" id="statBlocks">0</span></div>
+                            <div class="m-stat"><span class="m-label">Attacks</span><span class="m-value purple" id="statAlerts">0</span></div>
+                            <div class="m-stat"><span class="m-label">Blocked IPs</span><span class="m-value red" id="statBlocked">0</span></div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="card">
+                    <div class="card-header"><h3>🧠 Detection Engine</h3></div>
+                    <div class="card-body">
+                        <div class="chart-container">
+                            <canvas id="attackChart"></canvas>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="card" style="flex: 1;">
+                    <div class="card-header"><h3>🚨 Live Attack Feed</h3></div>
+                    <div class="card-body" style="padding: 1rem;">
+                        <div id="attackFeed" class="attack-feed">
+                            <div style="color:var(--text-muted); text-align:center; font-size:0.75rem; margin-top:2rem">No alerts in this session.</div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="report-banner">
+                    <div class="report-info">
+                        <h4>Forensic Report</h4>
+                        <p>Generate detailed evidence PDf</p>
+                    </div>
+                    <button class="btn btn-outline" style="padding: 0.5rem 0.8rem; border-color:white; color:white" onclick="generateReport()">
+                        📥 Download
+                    </button>
+                </div>
+            </div>
+
+            <!-- Main Content -->
+            <div class="main-content">
+                <div class="card">
+                    <div class="card-body controls">
+                        <button class="btn btn-danger" onclick="stopCollection()" id="btnStop">⏹ Stop Feed</button>
+                        <button class="btn btn-purple" onclick="runVerification()">🛡 Verify Integrity</button>
+                        
+                        <div style="flex: 1;"></div>
+
+                        <div class="ips-toggle">
+                            <span style="font-size: 0.7rem; font-weight: 700; color: var(--accent-green)">IPS MODE</span>
+                            <label class="switch">
+                                <input type="checkbox" id="ipsToggle" checked>
+                                <span class="slider"></span>
+                            </label>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="card">
+                    <div class="card-header"><h3>📈 Risk Analysis Timeline</h3></div>
+                    <div class="card-body">
+                        <div style="height: 120px;">
+                            <canvas id="timelineChart"></canvas>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="card log-section">
+                    <div class="card-header">
+                        <h3>📦 Secure Log Chain</h3>
+                        <div style="display: flex; gap: 0.5rem;">
+                            <span class="badge b-info" id="modeBadge">MODE</span>
+                            <span class="badge b-critical" id="integrityBadge">SECURE</span>
+                        </div>
+                    </div>
+                    <div class="card-body" style="padding: 0;">
+                        <div class="table-scroll">
+                            <table>
+                                <thead>
+                                    <tr>
+                                        <th>#</th>
+                                        <th>Timestamp</th>
+                                        <th>Source</th>
+                                        <th>Activity</th>
+                                        <th>Severity</th>
+                                        <th>Hash Signature</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="logTableBody">
+                                    <tr><td colspan="6" style="text-align:center; padding:3rem">Waiting for collection...</td></tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="card">
+                    <div class="card-header"><h3>🧬 Attack Simulation Lab</h3></div>
+                    <div class="card-body">
+                        <div class="sim-grid">
+                            <div class="sim-btn" onclick="simulate('ddos')">
+                                <span class="icon">🌊</span>
+                                <span class="name">DDoS Flood</span>
+                            </div>
+                            <div class="sim-btn" onclick="simulate('brute_force')">
+                                <span class="icon">🔑</span>
+                                <span class="name">Brute Force</span>
+                            </div>
+                            <div class="sim-btn" onclick="simulate('port_scan')">
+                                <span class="icon">🔍</span>
+                                <span class="name">Port Scan</span>
+                            </div>
+                             <div class="sim-btn" onclick="showAdversaryPanel()">
+                                <span class="icon">☠️</span>
+                                <span class="name">Tamper Logs</span>
+                            </div>
+                            <div class="sim-btn" onclick="simulate('sql_injection')">
+                                <span class="icon">💉</span>
+                                <span class="name">SQL Injection</span>
+                            </div>
+                            <div class="sim-btn" onclick="simulate('recon')">
+                                <span class="icon">🛰</span>
+                                <span class="name">Recon (Nmap)</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modals -->
+    <div id="verifyOverlay">
+        <div id="verifyContent"></div>
+    </div>
+
+    <script>
+        let pollInterval = null;
+        let charts = {};
+        let seenAlertsCount = 0;
+
+        function initCharts() {
+            const ctx1 = document.getElementById('attackChart').getContext('2d');
+            charts.attacks = new Chart(ctx1, {
+                type: 'doughnut',
+                data: {
+                    labels: ['Brute Force', 'DDoS', 'Scan', 'Others'],
+                    datasets: [{
+                        data: [0, 0, 0, 0],
+                        backgroundColor: ['#ef4444', '#a855f7', '#f59e0b', '#6366f1'],
+                        borderWidth: 0,
+                        hoverOffset: 10
+                    }]
+                },
+                options: {
+                    cutout: '75%',
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: { legend: { display: false } }
+                }
+            });
+
+            const ctx2 = document.getElementById('timelineChart').getContext('2d');
+            charts.timeline = new Chart(ctx2, {
+                type: 'line',
+                data: {
+                    labels: [],
+                    datasets: [{
+                        label: 'Risk Score',
+                        data: [],
+                        borderColor: '#6366f1',
+                        borderWidth: 2,
+                        tension: 0.4,
+                        fill: true,
+                        backgroundColor: 'rgba(99, 102, 241, 0.1)'
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: { legend: { display: false } },
+                    scales: {
+                        y: { min: 0, max: 1, grid: { display: false }, ticks: { display: false } },
+                        x: { grid: { display: false }, ticks: { display: false } }
+                    }
+                }
+            });
+        }
+
+        async function startMode(mode) {
+            const res = await fetch('/api/start', { method: 'POST', body: JSON.stringify({ mode }) });
+            const data = await res.json();
+            if (data.status === 'ok') {
+                document.getElementById('modeSelection').style.display = 'none';
+                document.getElementById('dashboard').classList.add('active');
+                document.getElementById('modeBadge').textContent = mode.toUpperCase();
+                document.getElementById('statusDot').classList.add('active');
+                document.getElementById('statusText').textContent = 'Monitoring Live Feed';
+                initCharts();
+                startPolling();
+                showToast(`Success: ${mode} collection active`);
+            }
+        }
+
+        function startPolling() {
+            pollInterval = setInterval(async () => {
+                // Status & Alerts
+                const res = await fetch('/api/status');
+                const data = await res.json();
+                
+                document.getElementById('statCaptured').textContent = data.captured_count;
+                document.getElementById('statBlocks').textContent = data.block_count;
+                document.getElementById('statAlerts').textContent = data.alerts_count;
+                document.getElementById('statBlocked').textContent = data.ips_status.blocked_count;
+
+                if (data.alerts_count > seenAlertsCount) {
+                    updateAlertFeed(data.recent_alerts);
+                    seenAlertsCount = data.alerts_count;
+                    showToast('⚠ SECURITY ALERT: Malicious activity identified!', 'danger');
+                }
+
+                // Logs
+                refreshLogs();
+                refreshStats();
+            }, 2000);
+        }
+
+        async function refreshLogs() {
+            const res = await fetch('/api/logs');
+            const data = await res.json();
+            const tbody = document.getElementById('logTableBody');
+            
+            if (data.blocks.length > 0) {
+                tbody.innerHTML = data.blocks.slice(-20).reverse().map(b => {
+                    const l = b.log;
+                    const sevClass = `b-${(l.severity || 'info').toLowerCase()}`;
+                    const ts = l.timestamp.split('T')[1].substring(0, 8);
+                    return `
+                        <tr>
+                            <td style="font-weight:700">#${b.index}</td>
+                            <td style="font-family:'JetBrains Mono'">${ts}</td>
+                            <td>${l.source}</td>
+                            <td style="max-width:300px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap">${l.message}</td>
+                            <td><span class="badge ${sevClass}">${l.severity}</span></td>
+                            <td class="hash-code">${b.hash.substring(0, 16)}...</td>
+                        </tr>
+                    `;
+                }).join('');
+            }
+        }
+
+        async function refreshStats() {
+            const res = await fetch('/api/stats');
+            const data = await res.json();
+
+            // Update Attack Doughnut
+            const attackData = [
+                data.attacks['Brute Force Attack'] || 0,
+                data.attacks['DDoS'] || 0,
+                data.attacks['Port Scan'] || 0,
+                Object.values(data.attacks).reduce((a, b) => a + b, 0) - (data.attacks['Brute Force Attack'] || 0) - (data.attacks['DDoS'] || 0) - (data.attacks['Port Scan'] || 0)
+            ];
+            charts.attacks.data.datasets[0].data = attackData;
+            charts.attacks.update();
+
+            // Update Timeline
+            if (data.timeline && data.timeline.length > 0) {
+                charts.timeline.data.labels = data.timeline.map(p => '');
+                charts.timeline.data.datasets[0].data = data.timeline.map(p => p.risk);
+                charts.timeline.update();
+            }
+        }
+
+        function updateAlertFeed(alerts) {
+            const feed = document.getElementById('attackFeed');
+            if (alerts.length === 0) return;
+            
+            feed.innerHTML = alerts.slice(-3).reverse().map(a => `
+                <div class="attack-item">
+                    <span class="a-type">${a.type}</span>
+                    <span class="a-info">${a.details.substring(0, 60)}...</span>
+                    <div class="a-meta">
+                        <span>Risk Score: ${a.risk_score}</span>
+                        <span>Block: #${a.block_index}</span>
+                    </div>
+                </div>
+            `).join('');
+        }
+
+        async function simulate(type) {
+            showToast(`Triggering simulated ${type} attack...`);
+            await fetch('/api/simulate/attack', { method: 'POST', body: JSON.stringify({ type }) });
+        }
+
+        async function runVerification() {
+            showToast('🔬 Recalculating all hashes & signatures...');
+            const res = await fetch('/api/verify');
+            const data = await res.json();
+            
+            const overlay = document.getElementById('verifyOverlay');
+            const content = document.getElementById('verifyContent');
+            const r = data.result;
+            
+            overlay.style.display = 'flex';
+            content.innerHTML = `
+                <div class="verify-card">
+                    <div class="v-status-icon ${r.valid ? 'secure' : 'danger'}">
+                        ${r.valid ? '🛡' : '🚨'}
+                    </div>
+                    <h2 style="text-align:center; font-size:1.8rem; margin-bottom:1rem">
+                        ${r.valid ? 'Integrity Verified' : 'Forensic Tamper Detected'}
+                    </h2>
+                    <p style="text-align:center; color:var(--text-secondary); margin-bottom:1.5rem">
+                        ${r.reason}
+                    </p>
+                    <div style="background:var(--bg-glass); border-radius:15px; padding:1.5rem; max-height:200px; overflow-y:auto; margin-bottom:1.5rem">
+                        ${data.block_details.map(d => `
+                            <div style="display:flex; justify-content:space-between; font-size:0.75rem; padding:0.5rem 0; border-bottom:1px solid rgba(255,255,255,0.05)">
+                                <span>Block #${d.index}</span>
+                                <span style="color:${d.hash_valid ? 'var(--accent-green)' : 'var(--accent-red)'}">
+                                    ${d.hash_valid ? 'HASH MATCH' : 'HASH MISMATCH'}
+                                </span>
+                            </div>
+                        `).join('')}
+                    </div>
+                    <button class="btn btn-primary" style="width:100%" onclick="document.getElementById('verifyOverlay').style.display='none'">
+                        Close Investigation
+                    </button>
+                </div>
+            `;
+            
+            if (!r.valid) {
+                document.getElementById('integrityBadge').textContent = 'TAMPERED';
+                document.getElementById('integrityBadge').classList.replace('b-critical', 'b-danger');
+            }
+        }
+
+        async function generateReport() {
+            showToast('📄 Compiling Forensic PDF...');
+            const res = await fetch('/api/report/generate');
+            const data = await res.json();
+            window.location.href = data.report_url;
+        }
+
+        async function resetSystem() {
+            await fetch('/api/reset', { method: 'POST' });
+            window.location.reload();
+        }
+
+        function showToast(msg, type = 'info') {
+            const t = document.createElement('div');
+            t.className = 'toast';
+            t.innerHTML = `<span>${msg}</span>`;
+            document.body.appendChild(t);
+            setTimeout(() => { t.style.opacity = '0'; setTimeout(() => t.remove(), 500); }, 3000);
+        }
+
+        async function stopCollection() {
+            await fetch('/api/stop', { method: 'POST' });
+            clearInterval(pollInterval);
+            document.getElementById('statusDot').classList.remove('active');
+            document.getElementById('statusText').textContent = 'Session Halted';
+            showToast('Collection stopped by analyst', 'warning');
+        }
+
+        function showAdversaryPanel() {
+            // Reusing basic adversary logic if needed, but the simulation lab covers most.
+            showToast('Switching to Adversary Simulation mode...', 'warning');
+        }
+    </script>
+</body>
+</html>
