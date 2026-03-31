@@ -27,7 +27,7 @@ ips_manager = IPSManager(simulation_mode=True)
 alert_manager = AlertManager() # Placeholders for Telegram/Email
 intel = ThreatIntel()
 reporter = ForensicReportGenerator()
-simulator = Simulator(log_chain)
+simulator = Simulator(log_chain, detector, ips_manager)
 
 # Collectors
 win_collector = None
@@ -98,14 +98,14 @@ def get_logs():
 
 @app.route("/api/status", methods=["GET"])
 def get_status():
-    captured = 0
-    alerts = []
+    captured = simulator.captured_count
+    alerts = list(simulator.alerts)
     if net_collector:
-        captured = net_collector.packets_captured
-        alerts = net_collector.alerts
+        captured += net_collector.packets_captured
+        alerts.extend(net_collector.alerts)
     elif win_collector:
-        captured = win_collector.events_captured
-        alerts = win_collector.alerts
+        captured += win_collector.events_captured
+        alerts.extend(win_collector.alerts)
         
     return jsonify({
         "collecting": system_state["collecting"],
@@ -123,9 +123,9 @@ def get_stats():
     blocks = log_chain.chain
     
     # 1. Attack distribution
-    all_alerts = []
-    if net_collector: all_alerts = net_collector.alerts
-    elif win_collector: all_alerts = win_collector.alerts
+    all_alerts = list(simulator.alerts)
+    if net_collector: all_alerts.extend(net_collector.alerts)
+    elif win_collector: all_alerts.extend(win_collector.alerts)
     
     attack_counts = {}
     for a in all_alerts:
@@ -161,9 +161,9 @@ def run_sim_attack():
 
 @app.route("/api/report/generate", methods=["GET"])
 def generate_report():
-    all_alerts = []
-    if net_collector: all_alerts = net_collector.alerts
-    elif win_collector: all_alerts = win_collector.alerts
+    all_alerts = list(simulator.alerts)
+    if net_collector: all_alerts.extend(net_collector.alerts)
+    elif win_collector: all_alerts.extend(win_collector.alerts)
     
     path = reporter.generate(log_chain, {}, all_alerts, "forensic_report.pdf")
     return jsonify({"status": "ok", "report_url": "/api/report/download"})
@@ -249,7 +249,7 @@ def verify_chain():
 
 @app.route("/api/reset", methods=["POST"])
 def reset_chain():
-    global log_chain, adversary, win_collector, net_collector
+    global log_chain, adversary, win_collector, net_collector, simulator
 
     # Stop any active collection
     system_state["collecting"] = False
@@ -264,6 +264,7 @@ def reset_chain():
     log_chain = LogChain()
     adversary = Adversary(log_chain)
     system_state["mode"] = None
+    simulator = Simulator(log_chain, detector, ips_manager)
 
     return jsonify({"status": "ok", "message": "System reset. New chain created."})
 

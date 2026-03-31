@@ -6,8 +6,26 @@ class Simulator:
     """
     Simulates a network environment generating logs.
     """
-    def __init__(self, log_chain: LogChain):
+    def __init__(self, log_chain: LogChain, detector=None, ips=None):
         self.chain = log_chain
+        self.detector = detector
+        self.ips = ips
+        self.captured_count = 0
+        self.alerts = []
+
+    def _process_added_block(self, block):
+        self.captured_count += 1
+        if self.detector:
+            is_attack, attack_type, confidence, score = self.detector.analyze(block.log_entry)
+            if is_attack:
+                self.alerts.append({
+                    "type": attack_type,
+                    "details": block.log_entry.message,
+                    "risk_score": score,
+                    "block_index": block.index
+                })
+                if score > 0.8 and self.ips and block.log_entry.src_ip:
+                    self.ips.block_ip(block.log_entry.src_ip)
 
     def generate_random_log(self):
         """
@@ -24,7 +42,9 @@ class Simulator:
         event_func = random.choice(scenarios)
         source, event_type, message, severity = event_func()
         
-        return self.chain.add_log(source, event_type, message, severity)
+        block = self.chain.add_log(source, event_type, message, severity)
+        self._process_added_block(block)
+        return block
 
     def _web_traffic(self):
         methods = ["GET", "POST", "PUT"]
@@ -69,7 +89,8 @@ class Simulator:
         print(f"[SIMULATOR] Starting Brute Force Attack from {ip}...")
         for i in range(10):
             msg = f"Failed password for {user} from {ip} port 54321 ssh2"
-            self.chain.add_log(f"AuthServer", "LOGIN_FAILURE", msg, "CRITICAL", src_ip=ip)
+            block = self.chain.add_log(f"AuthServer", "LOGIN_FAILURE", msg, "CRITICAL", src_ip=ip)
+            self._process_added_block(block)
             time.sleep(0.5)
 
     def simulate_ddos(self):
@@ -79,7 +100,8 @@ class Simulator:
         print(f"[SIMULATOR] Starting DDoS Traffic Spike from {source}...")
         for _ in range(30):
             msg = f"TCP {source} -> {target}:80 Flags=SYN [FLOOD]"
-            self.chain.add_log(f"NetCapture:{source}", "NETWORK_PACKET", msg, "INFO", src_ip=source, dst_port=80)
+            block = self.chain.add_log(f"NetCapture:{source}", "NETWORK_PACKET", msg, "INFO", src_ip=source, dst_port=80)
+            self._process_added_block(block)
             time.sleep(0.1)
 
     def simulate_port_scan(self):
@@ -89,7 +111,8 @@ class Simulator:
         print(f"[SIMULATOR] Starting Port Scan from {ip}...")
         for port in range(20, 100, 5):
             msg = f"TCP {ip} -> {target}:{port} Flags=SYN"
-            self.chain.add_log(f"NetCapture:{ip}", "NETWORK_PACKET", msg, "WARNING", src_ip=ip, dst_port=port)
+            block = self.chain.add_log(f"NetCapture:{ip}", "NETWORK_PACKET", msg, "WARNING", src_ip=ip, dst_port=port)
+            self._process_added_block(block)
             time.sleep(0.3)
 
     def run_simulation(self, count=5, delay=0.5):
